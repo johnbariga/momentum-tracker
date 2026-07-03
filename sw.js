@@ -1,5 +1,5 @@
 /* Momentum service worker — network-first with cache fallback (offline support) */
-const CACHE = "momentum-v1";
+const CACHE = "momentum-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -14,7 +14,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET" || !e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" })   // always revalidate so updates land immediately
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy));

@@ -46,14 +46,21 @@ Notes:
 
 **Publishing updates:** the app is hosted from the `momentum-tracker` GitHub repo. After changing files here, run `git add -A && git commit -m "update" && git push` in this folder (or ask Claude) — the site updates in ~1 minute.
 
-## Cloud sync with Supabase (one-time, ~2 minutes)
+## Cloud sync with Supabase (v2 dimensional schema)
 
-1. Create a free project at [supabase.com](https://supabase.com).
-2. In the project, open **SQL Editor**, paste the SQL from **Settings → Supabase cloud sync → Copy SQL**, and click *Run*.
-3. In Supabase go to **Project Settings → API** and copy the **Project URL** and the **anon public key**.
-4. In Momentum's **Settings** page, paste both and press **Connect & sync**.
+The database follows a Kimball dimensional design: normalized operational tables (`consumption_log`, `exercise_log`, `schedule_log`, `day_info`, `meetings`, `milestones`, `body_log`, `commute_log`, …) as the OLTP source of truth, plus star-schema **views** (`fact_daily_summary`, `fact_consumption`, `fact_exercise_set`, `fact_schedule_event`, `dim_date`, `dim_food`, …) for analytics — e.g. `select location, avg(protein_g) from fact_daily_summary group by location;`.
 
-From then on every change is pushed to your database automatically (badge in the sidebar shows sync status), and you can open the app from any browser/device pointing at the same Supabase project.
+Setup / upgrade:
+1. Create a free project at [supabase.com](https://supabase.com) (skip if you have one).
+2. Open **SQL Editor**, paste the whole of **`supabase-migration-v2.sql`** (in this folder / repo), *Run*. It creates everything and migrates v1 data automatically. Safe to re-run.
+3. In Momentum's **Settings**, paste your Project URL + anon key → **Connect & sync**. Use **📱 Copy phone connect link** for other devices.
+
+## v4 features
+
+- **🔥 Calories** — Mifflin-St Jeor BMR → TDEE → deficit target; one food entry updates calories, protein, fiber and water together; live deficit + weekly fat-loss projection; personal non-veg deficit meal plan.
+- **⏰ Adaptive routine** — enter your real wake-up time and flexible items shift while anchored items (office, meetings, commute) stay put; conflicts resolve like a human would (workout won't be scheduled inside your standup).
+- **🧭 Timezones** — meetings anchored to your home/company timezone convert automatically when you travel (8:30 CT standup shows as 6:30 PT in Seattle).
+- **💼 Office days** — Tue/Thu (configurable) get commute blocks (40 min each way) in the timeline and the database.
 
 ## Backup
 
