@@ -3,6 +3,7 @@
 
 const STORE_KEY = "lifetracker-v1";
 const SYNC_KEY = "lifetracker-sync";
+const APP_URL = "https://johnbariga.github.io/momentum-tracker/";
 
 /* ================= Presets ================= */
 const DEFAULT_ROUTINE = [
@@ -1243,6 +1244,11 @@ function renderSettings() {
         <button class="btn ghost" data-act="sb-pull">⬇️ Pull from cloud</button>` : ""}
       ${sync.config ? `<button class="btn danger" data-act="sb-disconnect">Disconnect</button>` : ""}
     </div>
+    ${sync.config ? `
+    <div class="row" style="margin:4px 0 10px">
+      <button class="btn ghost" data-act="copy-connect-link">📱 Copy phone connect link</button>
+      <span style="color:var(--muted);font-size:.78rem;flex:1;min-width:200px">Send this link to your phone (WhatsApp / email / AirDrop) and open it there once — it connects the phone to the same database automatically. Keep the link private: it contains your key.</span>
+    </div>` : ""}
     <div style="font-size:.83rem;color:var(--muted);margin-top:6px">
       <b style="color:var(--text)">One-time setup (2 minutes):</b><br>
       1. Create a free project at supabase.com → 2. Open <b>SQL Editor</b>, paste & run this → 3. Paste your URL + anon key above and hit Connect.
@@ -1644,6 +1650,15 @@ const actions = {
     localStorage.removeItem(SYNC_KEY);
     toast("Disconnected — running local-only");
   },
+  "copy-connect-link": () => {
+    if (!sync.config) { toast("Connect Supabase here first", "err"); return "no-render"; }
+    const link = APP_URL + "#connect=" + encodeURIComponent(btoa(JSON.stringify(sync.config)));
+    navigator.clipboard.writeText(link).then(
+      () => toast("📋 Link copied — send it to your phone and open it there"),
+      () => toast("Couldn't copy — copy it from the console instead", "err")
+    );
+    return "no-render";
+  },
   "copy-sql": () => {
     navigator.clipboard.writeText(SETUP_SQL).then(() => toast("📋 SQL copied — paste it in Supabase SQL Editor"));
     return "no-render";
@@ -1726,8 +1741,26 @@ function bindPage() {
   });
 }
 
+/* One-tap device setup: open <app>#connect=<base64 {url,key}> to adopt sync config */
+function handleConnectLink() {
+  const m = location.hash.match(/^#connect=(.+)/);
+  if (!m) return;
+  try {
+    const cfg = JSON.parse(atob(decodeURIComponent(m[1])));
+    if (cfg.url && cfg.key) {
+      sync.config = { url: cfg.url, key: cfg.key };
+      localStorage.setItem(SYNC_KEY, JSON.stringify(sync.config));
+      toast("☁️ Cloud sync configured — connecting…");
+    } else throw new Error("missing fields");
+  } catch (e) {
+    toast("That connect link looks invalid", "err");
+  }
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
 function init() {
   load();
+  handleConnectLink();
   document.querySelectorAll(".nav-item").forEach(t => t.addEventListener("click", () => { currentPage = t.dataset.page; render(); }));
   document.getElementById("syncBadge").addEventListener("click", () => { currentPage = "settings"; render(); });
   document.getElementById("prevDay").addEventListener("click", () => { currentDate = shiftDate(currentDate, -1); render(); });
