@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Momentum — Personal Life OS</title>
+<meta name="theme-color" content="#070a14">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Momentum">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="logo"><span class="logo-mark">🚀</span><span class="logo-text">Momentum</span></div>
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-page="dashboard"><span class="ni-icon">⚡</span><span>Dashboard</span></button>
+      <button class="nav-item" data-page="day"><span class="ni-icon">☀️</span><span>My Day</span></button>
+      <button class="nav-item" data-page="work"><span class="ni-icon">💼</span><span>Work</span></button>
+      <button class="nav-item" data-page="fitness"><span class="ni-icon">💪</span><span>Fitness</span></button>
+      <button class="nav-item" data-page="water"><span class="ni-icon">💧</span><span>Hydration</span></button>
+      <button class="nav-item" data-page="protein"><span class="ni-icon">🥚</span><span>Protein</span></button>
+      <button class="nav-item" data-page="fiber"><span class="ni-icon">🌾</span><span>Fiber</span></button>
+      <button class="nav-item" data-page="food"><span class="ni-icon">🥗</span><span>Nutrition</span></button>
+      <button class="nav-item" data-page="history"><span class="ni-icon">📈</span><span>History</span></button>
+      <button class="nav-item" data-page="settings"><span class="ni-icon">⚙️</span><span>Settings</span></button>
+    </nav>
+    <button class="sync-badge" id="syncBadge" data-page="settings">💾 Local only</button>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="greeting" id="greeting"></div>
+      <div class="date-nav">
+        <button id="prevDay" class="icon-btn" title="Previous day">‹</button>
+        <div class="date-display">
+          <input type="date" id="datePicker">
+          <span id="dateLabel"></span>
+        </div>
+        <button id="nextDay" class="icon-btn" title="Next day">›</button>
+        <button id="todayBtn" class="pill-btn">Today</button>
+      </div>
+    </header>
+    <main id="pageContainer"></main>
+  </div>
+</div>
+<div id="toastWrap"></div>
+<script src="app.js"></script>
+</body>
+</html>
