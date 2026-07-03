@@ -244,7 +244,9 @@ function load() {
       db.settings.reminders = Object.assign(d.settings.reminders, (saved.settings || {}).reminders || {});
       db.settings.routineTemplate = (db.settings.routineTemplate || []).map(r => ({ anchored: /office/i.test(r.text), ...r }));
       if (isV1 && db.settings.proteinGoal < 160) db.settings.proteinGoal = 160; // cut targets
-      db.body = saved.body || [];
+      const bodyByDate = new Map();
+      (saved.body || []).forEach(b => bodyByDate.set(b.date, b));
+      db.body = [...bodyByDate.values()];
       db.meta = saved.meta || {};
     }
   } catch (e) { console.error("load failed", e); }
@@ -583,7 +585,8 @@ async function pushDay(date) {
   };
   const ins = async (table, rows) => {
     if (!rows.length) return;
-    const { error } = await sync.client.from(table).insert(rows);
+    // upsert (not insert) so overlapping pushes / retries can't hit duplicate-key errors
+    const { error } = await sync.client.from(table).upsert(rows);
     if (error) throw new Error(`${table}: ${error.message}`);
   };
   await del("consumption_log");
@@ -627,7 +630,7 @@ async function pushWork() {
   const wipe = async t => { const { error } = await sync.client.from(t).delete().neq("id", ""); if (error) throw new Error(`${t}: ${error.message}`); };
   await wipe("milestone_steps"); await wipe("milestones"); await wipe("meetings");
   if (db.work.meetings.length) {
-    const { error } = await sync.client.from("meetings").insert(db.work.meetings.map(m => ({
+    const { error } = await sync.client.from("meetings").upsert(db.work.meetings.map(m => ({
       id: m.id, title: m.title, start_date: m.date, time_of_day: m.time || null,
       duration_min: m.durationMin || db.settings.meetingDurationMin, repeat: m.repeat || "none",
       custom_days: m.days || [], notes: m.notes || "", timezone: db.settings.homeTz,
@@ -635,13 +638,13 @@ async function pushWork() {
     if (error) throw new Error("meetings: " + error.message);
   }
   if (db.work.milestones.length) {
-    const { error } = await sync.client.from("milestones").insert(db.work.milestones.map(ms => ({
+    const { error } = await sync.client.from("milestones").upsert(db.work.milestones.map(ms => ({
       id: ms.id, title: ms.title, target_date: ms.target || null, status: ms.status,
     })));
     if (error) throw new Error("milestones: " + error.message);
     const stepRows = db.work.milestones.flatMap(ms => ms.steps.map(s => ({ id: s.id, milestone_id: ms.id, step_date: s.date, note: s.text })));
     if (stepRows.length) {
-      const { error: e2 } = await sync.client.from("milestone_steps").insert(stepRows);
+      const { error: e2 } = await sync.client.from("milestone_steps").upsert(stepRows);
       if (e2) throw new Error("milestone_steps: " + e2.message);
     }
   }
@@ -652,10 +655,14 @@ async function pushWork() {
 
 async function pushBody() {
   const now = new Date().toISOString();
+  // one entry per date (last wins) — duplicate dates in one upsert are a Postgres error
+  const byDate = new Map();
+  db.body.forEach(b => byDate.set(b.date, b));
+  db.body = [...byDate.values()];
   const { error: e1 } = await sync.client.from("body_log").delete().gte("date", "1900-01-01");
   if (e1) throw new Error("body_log: " + e1.message);
   if (db.body.length) {
-    const { error } = await sync.client.from("body_log").insert(db.body.map(b => ({
+    const { error } = await sync.client.from("body_log").upsert(db.body.map(b => ({
       date: b.date, weight_kg: b.weight, body_fat_pct: b.bodyFat, updated_at: now,
     })));
     if (error) throw new Error("body_log: " + error.message);
@@ -677,10 +684,13 @@ function queuePush(scope) {
   sync.timer = setTimeout(flushPush, 1200);
 }
 
+let flushing = false;
 async function flushPush() {
   if (!sync.client || sync.status !== "ok" || !sync.dirty.size) return;
-  const scopes = [...sync.dirty];
+  if (flushing) return;   // never run two pushes concurrently (delete+insert must not interleave)
+  flushing = true;
   try {
+    const scopes = [...sync.dirty];
     for (const s of scopes) {
       if (s.startsWith("day:")) await pushDay(s.slice(4));
       else if (s === "work") await pushWork();
@@ -692,8 +702,12 @@ async function flushPush() {
     sync.lastSync = new Date();
   } catch (e) {
     sync.status = "error"; sync.message = e.message || String(e);
+  } finally {
+    flushing = false;
   }
   updateSyncBadge();
+  // anything queued while we were pushing goes out next
+  if (sync.status === "ok" && sync.dirty.size) { clearTimeout(sync.timer); sync.timer = setTimeout(flushPush, 400); }
 }
 
 function updateSyncBadge() {
