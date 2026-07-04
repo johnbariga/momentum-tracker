@@ -78,12 +78,13 @@ h1,h2,h3,.logo-text,.greeting,.ring-num,.stat-num { font-family: var(--font-head
 }
 .icon-btn {
   background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 11px;
-  width: 36px; height: 36px; font-size: 1.15rem; cursor: pointer;
+  width: 44px; height: 44px; font-size: 1.15rem; cursor: pointer; /* 44px touch minimum */
 }
 .icon-btn:hover { background: var(--panel2); }
 .pill-btn {
   background: var(--panel); color: var(--accent); border: 1px solid rgba(108,140,255,.45);
   border-radius: 999px; padding: 7px 15px; cursor: pointer; font-weight: 600; font-size: .85rem;
+  min-height: 44px; /* 44px touch minimum */
 }
 .pill-btn:hover { background: rgba(108,140,255,.15); }
 
@@ -114,7 +115,9 @@ input[type=time] { min-width: 132px; }
 .btn.ghost { background: var(--panel2); border: 1px solid var(--border2); color: var(--text); box-shadow: none; }
 .btn.small { padding: 6px 12px; font-size: .78rem; }
 .btn.danger { background: none; border: 1px solid var(--red); color: var(--red); box-shadow: none; }
-.del-btn { background: none; border: none; color: #566; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 4px 7px; border-radius: 7px; }
+.del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 4px 7px; border-radius: 7px; position: relative; }
+/* expand the tap hitbox to ~44px without inflating dense rows visually */
+.del-btn::after { content: ""; position: absolute; inset: -10px; }
 .del-btn:hover { color: var(--red); background: rgba(255,107,122,.12); }
 .empty { color: var(--muted); font-size: .87rem; padding: 16px 0; text-align: center; }
 .tag { font-size: .68rem; padding: 3px 10px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
@@ -168,10 +171,13 @@ input[type=time] { min-width: 132px; }
 .meet-chip { background: rgba(160,108,255,.2); color: #c9a8ff; }
 .repeat-chip { background: rgba(70,212,255,.15); color: var(--cyan); }
 .check {
-  width: 25px; height: 25px; border-radius: 8px; border: 2px solid #39406b;
+  width: 28px; height: 28px; border-radius: 8px; border: 2px solid #39406b;
   background: transparent; cursor: pointer; display: flex; align-items: center;
   justify-content: center; font-size: .85rem; color: transparent; flex-shrink: 0;
+  position: relative;
 }
+/* expand the tap hitbox to ~44px without inflating the row */
+.check::after { content: ""; position: absolute; inset: -9px; }
 .check.on { background: var(--green); border-color: var(--green); color: #063018; }
 
 /* ================= Work ================= */
