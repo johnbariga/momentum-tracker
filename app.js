@@ -931,11 +931,24 @@ function renderDashboard() {
       </div>
     </div>
     <div class="card">
-      <h2>🔥 Deficit today <span class="h-sub">TDEE ${eng.tdee} − eaten ${kc}</span></h2>
-      ${kc > 0 ? `
-        <div class="protein-big" style="font-size:1.9rem;color:${eng.tdee - kc >= 0 ? "var(--green)" : "var(--red)"}">${eng.tdee - kc >= 0 ? "−" : "+"}${Math.abs(eng.tdee - kc)} kcal</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">${eng.tdee - kc >= eng.deficit ? "🎯 On plan — full deficit achieved" : eng.tdee - kc > 0 ? `${eng.deficit - (eng.tdee - kc)} kcal short of the −${eng.deficit} plan` : "Over maintenance — tomorrow is a new day"}</div>`
-        : `<div class="empty">Log food to see today's deficit.</div>`}
+      <h2>🔥 Calorie budget <span class="h-sub">target ${eng.target} · TDEE ${eng.tdee}</span></h2>
+      ${kc > 0 ? (() => {
+        // Guidance framing: never praise a "deficit" that's really under-eating.
+        const left = eng.target - kc;
+        const def = eng.tdee - kc;
+        if (kc < 1000) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--cyan)">${left} kcal to go</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Keep fueling — the deficit is judged at day's end, not at ${kc} kcal in.</div>`;
+        if (left >= 0) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--green)">${left} kcal left</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">${def >= eng.deficit ? `🎯 On plan for the −${eng.deficit} deficit` : `On track — finish under ${eng.target} to hold the deficit`}</div>`;
+        if (def > 0) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--amber)">${-left} kcal over target</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Still ${def} kcal under maintenance — a lighter dinner keeps the plan alive.</div>`;
+        return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--red)">+${-def} kcal over maintenance</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Over maintenance — tomorrow is a new day.</div>`;
+      })() : `<div class="empty">Log food to see your calorie budget.</div>`}
       <h2 style="margin-top:16px">📊 Last 7 days <span class="h-sub">💧 water · 🟩 protein</span></h2>
       <div class="mini-bars">
         ${last7.map(d => `
@@ -1180,7 +1193,7 @@ function renderCalories() {
     <div class="progress-bar" style="margin:14px auto 6px;max-width:460px"><div style="width:${pct}%;background:${over ? "var(--red)" : "linear-gradient(90deg,var(--accent),var(--accent2))"}"></div></div>
     <div style="color:var(--muted);font-size:.85rem">
       ${over ? `${kc - eng.target} kcal over target` : `${eng.target - kc} kcal left today`}
-      · current deficit vs TDEE: <b style="color:${deficitNow >= 0 ? "var(--green)" : "var(--red)"}">${deficitNow >= 0 ? "−" : "+"}${Math.abs(deficitNow)}</b>
+      ${kc >= 1000 ? ` · running deficit vs TDEE: <b style="color:${deficitNow >= 0 ? "var(--green)" : "var(--red)"}">${deficitNow >= 0 ? "−" : "+"}${Math.abs(deficitNow)}</b>` : ""}
     </div>
     <div class="report-grid" style="margin-top:16px;text-align:left">
       <div class="report-stat"><div class="rs-num">${eng.bmr}</div><div class="rs-label">BMR (kcal)</div></div>
