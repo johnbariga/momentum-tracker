@@ -101,6 +101,8 @@ input[type=text], input[type=number], input[type=time], input[type=date].inline,
   border-radius: 10px; padding: 9px 12px; font-size: .9rem; width: 100%; font-family: var(--font-body);
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+/* 12h format needs room for "10:00 PM" — inline widths clip the meridiem on Windows */
+input[type=time] { min-width: 132px; }
 ::placeholder { color: #565e8a; }
 .btn {
   background: linear-gradient(120deg, var(--accent), var(--accent2)); color: #fff;
