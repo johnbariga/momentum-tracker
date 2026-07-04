@@ -875,6 +875,61 @@ function renderDashboard() {
   const body = [...db.body].sort((a, b) => a.date.localeCompare(b.date));
   const lastBody = body[body.length - 1];
   return `
+  <div class="grid2">
+    <div class="card hero-card">
+      <h2>🔥 Calorie budget <span class="h-sub">target ${eng.target} · TDEE ${eng.tdee}</span></h2>
+      ${kc > 0 ? (() => {
+        // Guidance framing: never praise a "deficit" that's really under-eating.
+        const left = eng.target - kc;
+        const def = eng.tdee - kc;
+        if (kc < 1000) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--cyan)">${left} kcal to go</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Keep fueling — the deficit is judged at day's end, not at ${kc} kcal in.</div>`;
+        if (left >= 0) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--green)">${left} kcal left</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">${def >= eng.deficit ? `🎯 On plan for the −${eng.deficit} deficit` : `On track — finish under ${eng.target} to hold the deficit`}</div>`;
+        if (def > 0) return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--amber)">${-left} kcal over target</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Still ${def} kcal under maintenance — a lighter dinner keeps the plan alive.</div>`;
+        return `
+        <div class="protein-big" style="font-size:1.9rem;color:var(--red)">+${-def} kcal over maintenance</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Over maintenance — tomorrow is a new day.</div>`;
+      })() : `<div class="empty">Log food to see your calorie budget.</div>`}
+      <h2 style="margin-top:16px">📊 Last 7 days <span class="h-sub">💧 water · 🟩 protein</span></h2>
+      <div class="mini-bars">
+        ${last7.map(d => `
+          <div class="mini-bar-col">
+            <div class="mini-bar-pair">
+              <div class="mini-bar" style="height:${Math.max(3, d.w)}%;background:var(--cyan)"></div>
+              <div class="mini-bar" style="height:${Math.max(3, d.p)}%;background:var(--green)"></div>
+            </div>
+            <div class="mini-bar-label">${fmtShort(d.d)}</div>
+          </div>`).join("")}
+      </div>
+      ${lastBody ? `<div class="report-list" style="margin-top:12px">⚖️ <b>${lastBody.weight ?? "—"} kg</b> · <b>${lastBody.bodyFat ?? "—"}% fat</b> (${fmtShort(lastBody.date)}) <button class="btn small ghost" data-goto="food">Update</button></div>` : ""}
+    </div>
+    <div class="card">
+      <h2>⚡ Quick log</h2>
+      <div class="quick-row">
+        <button class="chip-btn" data-act="quick-water" data-ml="250">💧 +250 ml</button>
+        <button class="chip-btn" data-act="quick-water" data-ml="500">💧 +500 ml</button>
+        <button class="chip-btn" data-act="quick-food" data-name="Buttermilk">🥛 Buttermilk</button>
+        <button class="chip-btn" data-act="quick-food" data-name="Egg (whole)">🥚 +1 egg</button>
+        <button class="chip-btn" data-goto="calories">🔥 Log food</button>
+        <button class="chip-btn" data-goto="fitness">💪 Log workout</button>
+      </div>
+      <h2 style="margin-top:20px">🗓️ Meetings — ${currentDate === todayStr() ? "today" : fmtShort(currentDate)}
+        ${db.settings.currentTz !== db.settings.homeTz ? `<span class="h-sub">shown in ${esc(tzShort(db.settings.currentTz))}</span>` : ""}</h2>
+      <div class="timeline-peek">
+        ${meets.length ? meets.map(m => `
+          <div class="tl-row"><span class="tl-time">${fmtTime12(m.localTime)}</span><span style="flex:1">${esc(m.title)}</span>
+          ${m.repeat !== "none" ? `<span class="tag repeat-chip">${repeatLabel(m)}</span>` : ""}</div>`).join("")
+        : `<div class="empty">No meetings on this day.</div>`}
+        ${isOfficeDay(currentDate) ? `<div class="tl-row"><span class="tl-time">🚗</span><span style="flex:1;color:var(--muted)">Office day — ${db.settings.office.commuteMin} min drive each way</span></div>` : ""}
+      </div>
+    </div>
+  </div>
+
   <div class="hero-grid">
     <div class="card ring-card" data-goto="calories">
       <div class="ring-wrap">${ringSvg(pctOf(kc, eng.target), kc > eng.target ? "var(--red)" : "var(--accent2)")}
@@ -906,61 +961,6 @@ function renderDashboard() {
       <div class="stat-label">exercises</div>
       <div class="stat-num" style="font-size:1.1rem;color:var(--cyan)">${streak} <span class="streak-flame">🔥</span></div>
       <div class="stat-label">water streak</div>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card">
-      <h2>⚡ Quick log</h2>
-      <div class="quick-row">
-        <button class="chip-btn" data-act="quick-water" data-ml="250">💧 +250 ml</button>
-        <button class="chip-btn" data-act="quick-water" data-ml="500">💧 +500 ml</button>
-        <button class="chip-btn" data-act="quick-food" data-name="Buttermilk">🥛 Buttermilk</button>
-        <button class="chip-btn" data-act="quick-food" data-name="Egg (whole)">🥚 +1 egg</button>
-        <button class="chip-btn" data-goto="calories">🔥 Log food</button>
-        <button class="chip-btn" data-goto="fitness">💪 Log workout</button>
-      </div>
-      <h2 style="margin-top:20px">🗓️ Meetings — ${currentDate === todayStr() ? "today" : fmtShort(currentDate)}
-        ${db.settings.currentTz !== db.settings.homeTz ? `<span class="h-sub">shown in ${esc(tzShort(db.settings.currentTz))}</span>` : ""}</h2>
-      <div class="timeline-peek">
-        ${meets.length ? meets.map(m => `
-          <div class="tl-row"><span class="tl-time">${fmtTime12(m.localTime)}</span><span style="flex:1">${esc(m.title)}</span>
-          ${m.repeat !== "none" ? `<span class="tag repeat-chip">${repeatLabel(m)}</span>` : ""}</div>`).join("")
-        : `<div class="empty">No meetings on this day.</div>`}
-        ${isOfficeDay(currentDate) ? `<div class="tl-row"><span class="tl-time">🚗</span><span style="flex:1;color:var(--muted)">Office day — ${db.settings.office.commuteMin} min drive each way</span></div>` : ""}
-      </div>
-    </div>
-    <div class="card">
-      <h2>🔥 Calorie budget <span class="h-sub">target ${eng.target} · TDEE ${eng.tdee}</span></h2>
-      ${kc > 0 ? (() => {
-        // Guidance framing: never praise a "deficit" that's really under-eating.
-        const left = eng.target - kc;
-        const def = eng.tdee - kc;
-        if (kc < 1000) return `
-        <div class="protein-big" style="font-size:1.9rem;color:var(--cyan)">${left} kcal to go</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Keep fueling — the deficit is judged at day's end, not at ${kc} kcal in.</div>`;
-        if (left >= 0) return `
-        <div class="protein-big" style="font-size:1.9rem;color:var(--green)">${left} kcal left</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">${def >= eng.deficit ? `🎯 On plan for the −${eng.deficit} deficit` : `On track — finish under ${eng.target} to hold the deficit`}</div>`;
-        if (def > 0) return `
-        <div class="protein-big" style="font-size:1.9rem;color:var(--amber)">${-left} kcal over target</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Still ${def} kcal under maintenance — a lighter dinner keeps the plan alive.</div>`;
-        return `
-        <div class="protein-big" style="font-size:1.9rem;color:var(--red)">+${-def} kcal over maintenance</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Over maintenance — tomorrow is a new day.</div>`;
-      })() : `<div class="empty">Log food to see your calorie budget.</div>`}
-      <h2 style="margin-top:16px">📊 Last 7 days <span class="h-sub">💧 water · 🟩 protein</span></h2>
-      <div class="mini-bars">
-        ${last7.map(d => `
-          <div class="mini-bar-col">
-            <div class="mini-bar-pair">
-              <div class="mini-bar" style="height:${Math.max(3, d.w)}%;background:var(--cyan)"></div>
-              <div class="mini-bar" style="height:${Math.max(3, d.p)}%;background:var(--green)"></div>
-            </div>
-            <div class="mini-bar-label">${fmtShort(d.d)}</div>
-          </div>`).join("")}
-      </div>
-      ${lastBody ? `<div class="report-list" style="margin-top:12px">⚖️ <b>${lastBody.weight ?? "—"} kg</b> · <b>${lastBody.bodyFat ?? "—"}% fat</b> (${fmtShort(lastBody.date)}) <button class="btn small ghost" data-goto="food">Update</button></div>` : ""}
     </div>
   </div>`;
 }

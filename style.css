@@ -119,6 +119,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .progress-bar { background: rgba(255,255,255,.07); border-radius: 999px; height: 9px; overflow: hidden; }
 .progress-bar > div { height: 100%; border-radius: 999px; transition: width .4s; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* the one card that answers "how am I doing today?" — visually leads the page */
+.hero-card {
+  border-color: rgba(108,140,255,.35);
+  background: linear-gradient(150deg, rgba(108,140,255,.07), var(--panel) 55%);
+}
 
 /* ================= Dashboard ================= */
 .hero-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
