@@ -1199,7 +1199,7 @@ function renderCalories() {
       <div class="report-stat"><div class="rs-num">${eng.bmr}</div><div class="rs-label">BMR (kcal)</div></div>
       <div class="report-stat"><div class="rs-num">${eng.tdee}</div><div class="rs-label">maintenance (TDEE)</div></div>
       <div class="report-stat"><div class="rs-num" style="color:var(--accent2)">${eng.target}</div><div class="rs-label">daily target (−${eng.deficit})</div></div>
-      <div class="report-stat"><div class="rs-num" style="color:${weeklyKg > 0 ? "var(--green)" : "var(--muted)"}">${defDays ? (weeklyKg > 0 ? "−" : "+") + Math.abs(weeklyKg) + " kg" : "—"}</div><div class="rs-label">projected / week (7-day avg)</div></div>
+      <div class="report-stat"><div class="rs-num" style="color:${defDays >= 3 && weeklyKg > 0 ? "var(--green)" : "var(--muted)"}">${defDays >= 3 ? (weeklyKg > 0 ? "−" : "+") + Math.abs(weeklyKg) + " kg" : "—"}</div><div class="rs-label">${defDays >= 3 ? "projected / week (7-day avg)" : `projection unlocks after 3 logged days (${defDays}/3)`}</div></div>
     </div>
     <div style="color:var(--muted);font-size:.74rem;margin-top:8px">Mifflin-St Jeor for ${db.settings.physio.weightKg}kg · ${db.settings.physio.heightCm}cm · ${db.settings.physio.age}y · edit in Settings</div>
   </div>
