@@ -102,9 +102,16 @@ input[type=text], input[type=number], input[type=time], input[type=date].inline,
   border-radius: 10px; padding: 9px 12px; font-size: .9rem; width: 100%; font-family: var(--font-body);
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+/* keyboard users get the same ring buttons/mouse users get on hover */
+button:focus-visible, .nav-item:focus-visible, a:focus-visible, label:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
 /* 12h format needs room for "10:00 PM" — inline widths clip the meridiem on Windows */
 input[type=time] { min-width: 132px; }
-::placeholder { color: #565e8a; }
+::placeholder { color: #7d86b8; } /* AA contrast on --bg2 */
 .btn {
   background: linear-gradient(120deg, var(--accent), var(--accent2)); color: #fff;
   border: none; border-radius: 10px; padding: 10px 20px; font-weight: 700;
