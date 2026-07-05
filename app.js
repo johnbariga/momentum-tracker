@@ -129,6 +129,7 @@ function shiftDate(dateStr, delta) {
   const d = dateObj(dateStr); d.setDate(d.getDate() + delta);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+function daysBetween(a, b) { return Math.round((dateObj(b) - dateObj(a)) / 86400000); }
 function toMin(t) { if (!t) return null; const [h, m] = t.split(":").map(Number); return h * 60 + m; }
 function toHM(mins) {
   mins = ((Math.round(mins) % 1440) + 1440) % 1440;
@@ -176,7 +177,7 @@ function defaultDb() {
     settings: {
       userName: "John",
       waterGoal: 3000, proteinGoal: 160, fiberGoal: 32,
-      physio: { weightKg: 80, heightCm: 180, age: 27, sex: "male", activity: 1.55, deficit: 500 },
+      physio: { weightKg: 80, heightCm: 180, age: 27, sex: "male", activity: 1.55, deficit: 500, goalWeight: 74 },
       homeTz: "America/Chicago", currentTz: "America/Chicago",
       office: { days: [2, 4], start: "09:00", end: "18:00", commuteMin: 40 }, // JS getDay: 2=Tue 4=Thu
       meetingDurationMin: 30,
@@ -306,6 +307,42 @@ function calorieEngine() {
   const tdee = Math.round(bmr * p.activity);
   return { bmr: Math.round(bmr), tdee, target: tdee - p.deficit, deficit: p.deficit };
 }
+/* Least-squares trend over the last 28 days of weigh-ins → projected date to
+   hit the goal weight. Needs >=3 weigh-ins in the window; returns null otherwise
+   so the UI can show an unlock counter instead of a fake forecast. */
+function weightProjection() {
+  const goal = db.settings.physio.goalWeight;
+  const cutoff = shiftDate(todayStr(), -28);
+  const pts = db.body
+    .filter(b => b.weight != null && b.date >= cutoff)
+    .map(b => ({ x: daysBetween(cutoff, b.date), y: b.weight }))
+    .sort((a, b) => a.x - b.x);
+  if (pts.length < 3) return { ready: false, have: pts.length };
+  const n = pts.length;
+  const sx = pts.reduce((s, p) => s + p.x, 0);
+  const sy = pts.reduce((s, p) => s + p.y, 0);
+  const sxx = pts.reduce((s, p) => s + p.x * p.x, 0);
+  const sxy = pts.reduce((s, p) => s + p.x * p.y, 0);
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return { ready: false, have: n };
+  const slope = (n * sxy - sx * sy) / denom;          // kg/day
+  const intercept = (sy - slope * sx) / n;
+  const lastX = pts[n - 1].x;
+  const current = slope * lastX + intercept;          // fitted current weight
+  const weeklyKg = Math.round(slope * 7 * 100) / 100; // signed: negative = losing
+  const reached = Math.abs(current - goal) < 0.3;
+  let dateStr = null, capped = false;
+  if (!reached && slope !== 0) {
+    const daysToGoal = (goal - current) / slope;
+    if (daysToGoal > 0) {
+      const capDays = Math.min(daysToGoal, 365);
+      capped = daysToGoal > 365;
+      dateStr = shiftDate(todayStr(), Math.round(capDays));
+    }
+  }
+  return { ready: true, weeklyKg, goal, current: Math.round(current * 10) / 10, dateStr, capped, reached, towardGoal: dateStr != null || reached };
+}
+
 function dayScore(dateStr) {
   const day = peekDay(dateStr);
   if (!day) return null;
@@ -1280,10 +1317,41 @@ function renderCalories() {
       <div class="report-stat"><div class="rs-num">${eng.bmr}</div><div class="rs-label">BMR (kcal)</div></div>
       <div class="report-stat"><div class="rs-num">${eng.tdee}</div><div class="rs-label">maintenance (TDEE)</div></div>
       <div class="report-stat"><div class="rs-num" style="color:var(--accent2)">${eng.target}</div><div class="rs-label">daily target (−${eng.deficit})</div></div>
-      <div class="report-stat"><div class="rs-num" style="color:${defDays >= 3 && weeklyKg > 0 ? "var(--green)" : "var(--muted)"}">${defDays >= 3 ? (weeklyKg > 0 ? "−" : "+") + Math.abs(weeklyKg) + " kg" : "—"}</div><div class="rs-label">${defDays >= 3 ? "projected / week (7-day avg)" : `projection unlocks after 3 logged days (${defDays}/3)`}</div></div>
+      <div class="report-stat"><div class="rs-num" style="color:${defDays >= 3 && weeklyKg > 0 ? "var(--green)" : "var(--muted)"}">${defDays >= 3 ? (weeklyKg > 0 ? "−" : "+") + Math.abs(weeklyKg) + " kg" : "—"}</div><div class="rs-label">${defDays >= 3 ? "est. loss/wk (from deficit)" : `est. loss unlocks after 3 logged days (${defDays}/3)`}</div></div>
     </div>
     <div style="color:var(--muted);font-size:.74rem;margin-top:8px">Mifflin-St Jeor for ${db.settings.physio.weightKg}kg · ${db.settings.physio.heightCm}cm · ${db.settings.physio.age}y · edit in Settings</div>
   </div>
+  ${(() => {
+    const proj = weightProjection();
+    const goal = db.settings.physio.goalWeight;
+    if (!proj.ready) return `
+    <div class="card projection-card">
+      <h2>📉 Goal projection <span class="h-sub">goal ${goal} kg</span></h2>
+      <div class="empty">Log ${3 - proj.have} more weigh-in${3 - proj.have === 1 ? "" : "s"} to unlock your projection (${proj.have}/3). Add them on the Nutrition page.</div>
+    </div>`;
+    if (proj.reached) return `
+    <div class="card projection-card">
+      <h2>📉 Goal projection <span class="h-sub">goal ${goal} kg</span></h2>
+      <div class="proj-big" style="color:var(--green)">🎯 Goal reached — you're at ${proj.current} kg</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Nice work. Set a new goal weight in Settings to keep the projection going.</div>
+    </div>`;
+    if (!proj.towardGoal) return `
+    <div class="card projection-card">
+      <h2>📉 Goal projection <span class="h-sub">goal ${goal} kg</span></h2>
+      <div class="proj-big" style="color:var(--amber)">Trending away from goal</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Scale is moving ${proj.weeklyKg > 0 ? "up" : "flat"} (${proj.weeklyKg > 0 ? "+" : ""}${proj.weeklyKg} kg/week) while your goal is ${goal} kg. Tighten the deficit to turn this around.</div>
+    </div>`;
+    return `
+    <div class="card projection-card">
+      <h2>📉 Goal projection <span class="h-sub">goal ${goal} kg · from your weigh-ins</span></h2>
+      <div class="proj-big" style="color:var(--green)">${goal} kg by ${proj.capped ? "…" : fmtShort(proj.dateStr)}</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:4px">
+        ${proj.capped
+          ? `At ${proj.weeklyKg} kg/week the goal is more than a year out — a bigger deficit gets you there sooner.`
+          : `At your current pace of <b style="color:var(--green)">${Math.abs(proj.weeklyKg)} kg/week</b> (now ~${proj.current} kg). Keep logging weigh-ins to sharpen it.`}
+      </div>
+    </div>`;
+  })()}
   <div class="card">
     <h2>🍽️ Log food <span class="h-sub">updates calories + protein + fiber together</span></h2>
     ${foodGridHtml()}
@@ -1660,7 +1728,9 @@ function renderSettings() {
       <span class="s-label" style="min-width:auto">Height (cm)</span>
       <input type="number" id="phHeight" step="0.5" value="${p.heightCm}" style="width:100px">
       <span class="s-label" style="min-width:auto">Age</span>
-      <input type="number" id="phAge" value="${p.age}" style="width:80px"></div>
+      <input type="number" id="phAge" value="${p.age}" style="width:80px">
+      <span class="s-label" style="min-width:auto">Goal weight (kg)</span>
+      <input type="number" id="phGoalWeight" step="0.5" value="${p.goalWeight}" style="width:100px"></div>
     <div class="setting-row"><span class="s-label">Activity level</span>
       <select id="phActivity" style="width:230px">
         <option value="1.2"  ${p.activity === 1.2 ? "selected" : ""}>Sedentary (×1.2)</option>
@@ -1969,6 +2039,7 @@ const actions = {
     p.age = parseInt(document.getElementById("phAge").value, 10) || p.age;
     p.activity = parseFloat(document.getElementById("phActivity").value) || p.activity;
     p.deficit = parseInt(document.getElementById("phDeficit").value, 10) || p.deficit;
+    p.goalWeight = parseFloat(document.getElementById("phGoalWeight").value) || p.goalWeight;
     const eng = calorieEngine();
     toast(`🔥 Updated — TDEE ${eng.tdee}, target ${eng.target} kcal`);
   },

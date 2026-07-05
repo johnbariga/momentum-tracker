@@ -263,6 +263,7 @@ input[type=time] { min-width: 132px; }
 
 /* ================= Protein ================= */
 .protein-total-card { text-align: center; padding: 24px; }
+.projection-card .proj-big { font-size: 1.6rem; font-weight: 800; font-family: var(--font-head); }
 .protein-big { font-size: 2.5rem; font-weight: 800; font-family: var(--font-head); }
 .protein-big span { font-size: 1rem; color: var(--muted); font-weight: 500; }
 .food-preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); gap: 8px; margin-bottom: 14px; }
