@@ -14,16 +14,17 @@ Track your whole day in one place: routine, work, workouts, hydration, protein, 
 
 | Page | What it does |
 |---|---|
-| ⚡ Dashboard | Today at a glance: water/protein/fiber/routine rings, streak, quick log, today's meetings, 7-day chart |
+| ⚡ Dashboard | Budget-first: calorie budget leads, then water/protein/fiber/routine rings. **Deficit streak 🔥, cheat budget 🍕, and water streak** strip; quick log; today's meetings; 7-day chart |
 | ☀️ My Day | Your morning-to-sleep routine + that day's meetings in one timeline; mark the day as Work / Rest / Holiday |
-| 💼 Work | Milestones with step-by-step progress logs; meetings: one-time, daily, Mon–Fri, weekly, or **custom weekdays** (e.g. Wed + Fri) |
+| 💼 Work | **Standup draft** that writes itself from your logged milestone steps + today's meetings (one-tap copy); milestones with step-by-step progress logs; meetings: one-time, daily, Mon–Fri, weekly, or **custom weekdays** (e.g. Wed + Fri) |
 | 💪 Fitness | Log abs / legs / arms exercises with sets × reps |
 | 💧 Hydration | Waterllama-style cup, 3 L goal, water + buttermilk |
 | 🥚 Protein | Tap foods (egg = 6g, chicken 100g = 31g, …) or custom entries; auto totals |
 | 🌾 Fiber | Same quick-add system for fiber (oats, fruits, dals, seeds…), 30 g default goal |
+| 🔥 Calories | **Quick log**: type "2 roti + dal + 100g chicken" and log it in one tap (grams convert to servings automatically). Calorie engine + a **goal-weight projection** ("74 kg by Sep 28") from your weigh-ins |
 | 🥗 Nutrition | Eat/avoid guide, meal log with 🍕 cheat-meal marking + monthly green/yellow/red cheat meter, US Navy body-fat calculator, weight & fat trends |
 | 📈 History | Calendar of every day (click any day to open it), rest/holiday markers, cheat-meal dots, 30-day trends, all-time stats |
-| ⚙️ Settings | Name, goals, water reminders, Supabase cloud sync, JSON backup/restore |
+| ⚙️ Settings | Name, goals (incl. goal weight), water reminders, Supabase cloud sync, JSON backup/restore |
 
 ### Cheat-meal zones (per month)
 🟢 **Green** 0–2 · 🟡 **Yellow** 3–4 · 🔴 **Red** 5+ — the meter is on the Nutrition page and in History.
