@@ -1096,11 +1096,55 @@ function renderDay() {
   </div>`;
 }
 
+/* Assemble a standup update from logged milestone steps + today's meetings.
+   "Yesterday" = the most recent prior day that actually has steps (walks back
+   up to 6 days so a Monday standup still catches Friday's work). Returns null
+   when there's nothing logged to report. */
+function buildStandupDraft(dateStr) {
+  const ms = db.work.milestones;
+  // find the latest prior date with any step
+  let prevDate = null;
+  for (let i = 1; i <= 6 && !prevDate; i++) {
+    const d = shiftDate(dateStr, -i);
+    if (ms.some(m => m.steps.some(s => s.date === d))) prevDate = d;
+  }
+  const yesterdayLines = [];
+  if (prevDate) {
+    for (const m of ms) {
+      const steps = m.steps.filter(s => s.date === prevDate);
+      for (const s of steps) yesterdayLines.push(`• [${m.title}] ${s.text}`);
+    }
+  }
+  const todayPlan = ms.filter(m => m.status === "in-progress").map(m => `• ${m.title}`);
+  const meets = meetingsForDate(dateStr).map(m => `${fmtTime12(m.localTime)} ${m.title}`);
+  if (!yesterdayLines.length && !todayPlan.length && !meets.length) return null;
+
+  const lines = [`Standup — ${fmtDate(dateStr)}`, ``];
+  lines.push(prevDate ? `Yesterday (${fmtShort(prevDate)}):` : `Yesterday:`);
+  lines.push(...(yesterdayLines.length ? yesterdayLines : ["• (no steps logged)"]));
+  lines.push(``, `Today:`);
+  lines.push(...(todayPlan.length ? todayPlan : ["• (continue in-progress work)"]));
+  if (meets.length) lines.push(`• Meetings: ${meets.join(", ")}`);
+  lines.push(``, `Blockers: none`);
+  return lines.join("\n");
+}
+
 /* ================= Page: Work ================= */
 function renderWork() {
   const ms = db.work.milestones;
   const meetings = [...db.work.meetings].sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")));
+  const standup = buildStandupDraft(currentDate);
   return `
+  <div class="card">
+    <h2>📝 Standup draft <span class="h-sub">built from your logged steps + today's meetings</span></h2>
+    ${standup
+      ? `<textarea id="standupText" class="standup-box" readonly rows="${Math.min(14, standup.split("\n").length + 1)}">${esc(standup)}</textarea>
+         <div class="row" style="margin-top:8px">
+           <button class="btn" data-act="copy-standup">📋 Copy to clipboard</button>
+           <span style="color:var(--muted);font-size:.78rem">Log progress on your milestones below and it fills in automatically.</span>
+         </div>`
+      : `<div class="empty">Log a step on a milestone below (and add today's meetings) and your standup writes itself.</div>`}
+  </div>
   <div class="card">
     <h2>🎯 Milestones <span class="h-sub">${ms.filter(m => m.status === "done").length}/${ms.length} completed</span></h2>
     <div class="row" style="margin-bottom:14px">
@@ -2063,6 +2107,17 @@ const actions = {
     navigator.clipboard.writeText(link).then(
       () => toast("📋 Link copied — open it on your phone once"),
       () => toast("Couldn't copy automatically", "err"));
+    return "no-render";
+  },
+  "copy-standup": () => {
+    const el = document.getElementById("standupText");
+    if (!el) return "no-render";
+    const write = navigator.clipboard
+      ? navigator.clipboard.writeText(el.value)
+      : Promise.reject();
+    write.then(
+      () => toast("📋 Standup copied — paste it in Slack"),
+      () => { el.select(); toast("Selected — press Ctrl+C to copy", "err"); });
     return "no-render";
   },
   "export-json": () => {
