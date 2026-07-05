@@ -102,6 +102,7 @@ let exCat = "abs";
 let exPreset = null;
 let histMonth = currentDate.slice(0, 7);
 let logMealType = "";       // selected meal tag on calorie quick-add
+let qpSubmitting = false;   // guard: quick-parse double-submit (Enter + click)
 
 const sync = {
   config: null, client: null,
@@ -191,6 +192,60 @@ function defaultDb() {
 }
 
 function catalogByName(name) { return FOOD_CATALOG.find(f => f.name === name); }
+
+/* ---- Text quick-parse: "2 roti + dal and 100g chicken" -> catalog entries ---- */
+const WORD_NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, half: 0.5 };
+function singularize(w) { return w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w; }
+function foodTokens(s) {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(singularize);
+}
+/* Best catalog match for a free-text food name, or null. Scores token overlap
+   and rewards whole-word/substring hits so "roti" -> "Roti / chapati". */
+function matchFood(text) {
+  const q = foodTokens(text);
+  if (!q.length) return null;
+  let best = null, bestScore = 0;
+  for (const f of FOOD_CATALOG) {
+    const ft = foodTokens(f.name);
+    let score = 0;
+    for (const qt of q) {
+      if (ft.includes(qt)) score += 2;
+      else if (ft.some(t => t.startsWith(qt) || qt.startsWith(t))) score += 1;
+    }
+    // strictly-greater keeps the earliest catalog entry on ties, so "egg" ->
+    // "Egg (whole)" (listed before "Egg white")
+    if (score > bestScore) { best = f; bestScore = score; }
+  }
+  return bestScore > 0 ? best : null;
+}
+function unitGrams(unit) { const m = unit.match(/(\d+(?:\.\d+)?)\s*g\b/); return m ? parseFloat(m[1]) : null; }
+/* Parse a line of foods into segments with an optional leading quantity.
+   Splits on +, commas, "and", newlines. "100g chicken" converts to servings
+   when the matched food is gram-based (100g unit -> qty 1). */
+function parseFoodText(text) {
+  return text.split(/\s*(?:\+|,|;|\band\b|\n)\s*/i)
+    .map(seg => seg.trim())
+    .filter(Boolean)
+    .map(seg => {
+      let qty = 1, grams = null, rest = seg;
+      let m;
+      if ((m = seg.match(/^(\d+(?:\.\d+)?)\s*g(?:ram)?s?\b\s*(.+)$/i))) {        // "100g chicken"
+        grams = parseFloat(m[1]); rest = m[2];
+      } else if ((m = seg.match(/^(\d+)\/(\d+)\s+(.+)$/))) {                     // "1/2 banana"
+        qty = +m[2] ? +m[1] / +m[2] : 1; rest = m[3];
+      } else if ((m = seg.match(/^(\d+(?:\.\d+)?)\s+(.+)$/))) {                  // "3 eggs"
+        qty = parseFloat(m[1]); rest = m[2];
+      } else if ((m = seg.match(/^([a-z]+)\s+(.+)$/i)) && WORD_NUM[m[1].toLowerCase()] != null) {
+        qty = WORD_NUM[m[1].toLowerCase()]; rest = m[2];                        // "two rotis"
+      }
+      const food = matchFood(rest);
+      if (grams != null) {
+        const ug = food ? unitGrams(food.unit) : null;
+        qty = ug ? round1(grams / ug) : 1;   // gram-based food -> servings; else 1
+      }
+      return { raw: seg, qty: qty > 0 ? qty : 1, food };
+    });
+}
 
 /* v1 day shape (water/protein/fiber/meals arrays) -> v2 unified foods[] */
 function migrateDayV1(old) {
@@ -1353,6 +1408,15 @@ function renderCalories() {
     </div>`;
   })()}
   <div class="card">
+    <h2>⚡ Quick log <span class="h-sub">type a meal, log it in one tap</span></h2>
+    <div class="row">
+      <input type="text" id="qpInput" class="grow" placeholder="e.g. 2 roti + dal + 100g chicken" autocomplete="off">
+      <button class="btn" data-act="qp-add">Log it</button>
+    </div>
+    <div id="qpPreview" class="qp-preview"></div>
+    <div style="color:var(--muted);font-size:.76rem;margin-top:6px">Separate items with <b>+</b> or commas. Quantities and grams work ("3 eggs", "100g chicken"). Anything I don't recognize, add manually below.</div>
+  </div>
+  <div class="card">
     <h2>🍽️ Log food <span class="h-sub">updates calories + protein + fiber together</span></h2>
     ${foodGridHtml()}
   </div>
@@ -2006,6 +2070,31 @@ const actions = {
       toast(`🍕 Cheat meal #${n} this month — ${cheatZone(n).label}`, n > 4 ? "err" : "ok");
     } else toast(`🍽️ +${Math.round(kcal * qty)} kcal · +${round1(prot * qty)}g protein · +${round1(fib * qty)}g fiber`);
   },
+  "qp-add": () => {
+    if (qpSubmitting) return "no-render";   // guard against double-submit (Enter + click)
+    const input = document.getElementById("qpInput");
+    if (!input) return "no-render";
+    const text = input.value.trim();
+    if (!text) { toast("Type a meal first, e.g. 2 roti + dal", "err"); return "no-render"; }
+    const parsed = parseFoodText(text);
+    const matched = parsed.filter(p => p.food);
+    const missed = parsed.filter(p => !p.food);
+    if (!matched.length) { toast("Nothing recognized — add it manually below", "err"); return "no-render"; }
+    qpSubmitting = true;
+    let kc = 0, pr = 0;
+    for (const p of matched) {
+      const f = p.food;
+      kc += Math.round(f.kcal * p.qty); pr += f.protein * p.qty;
+      addFoodEntry({
+        id: uid(), food: f.name, qty: round1(p.qty), unit: f.unit, ml: Math.round((f.ml || 0) * p.qty),
+        kcal: Math.round(f.kcal * p.qty), protein: round1(f.protein * p.qty), fiber: round1(f.fiber * p.qty),
+        time: nowTime(),
+      });
+    }
+    input.value = "";
+    setTimeout(() => { qpSubmitting = false; }, 400);
+    toast(`🍽️ Logged ${matched.length} item${matched.length === 1 ? "" : "s"}: +${kc} kcal · +${round1(pr)}g protein${missed.length ? ` · ${missed.length} not recognized` : ""}`, missed.length ? "err" : "ok");
+  },
   "del-food": el => {
     const day = getDay(currentDate);
     day.foods = day.foods.filter(f => f.id !== el.dataset.id);
@@ -2265,6 +2354,26 @@ function bindPage() {
     const inp = document.getElementById(id);
     if (inp) inp.addEventListener("keydown", ev => { if (ev.key === "Enter") runAction(act, inp); });
   });
+  const qp = document.getElementById("qpInput");
+  if (qp) {
+    qp.addEventListener("input", renderQpPreview);
+    qp.addEventListener("keydown", ev => { if (ev.key === "Enter") runAction("qp-add", qp); });
+    renderQpPreview();
+  }
+}
+
+/* Live parse preview: matched foods as solid chips, unrecognized as dashed. */
+function renderQpPreview() {
+  const box = document.getElementById("qpPreview");
+  const input = document.getElementById("qpInput");
+  if (!box || !input) return;
+  const text = input.value.trim();
+  if (!text) { box.innerHTML = ""; return; }
+  const parsed = parseFoodText(text);
+  box.innerHTML = parsed.map(p => p.food
+    ? `<span class="qp-chip ok">${p.qty}× ${esc(p.food.name)} <span class="qp-kcal">${Math.round(p.food.kcal * p.qty)} kcal</span></span>`
+    : `<span class="qp-chip miss" title="Not in the food list — add it manually below">❓ ${esc(p.raw)}</span>`
+  ).join("");
 }
 
 /* One-tap device setup via #connect=<base64 {url,key}> */

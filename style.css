@@ -266,6 +266,12 @@ input[type=time] { min-width: 132px; }
 .projection-card .proj-big { font-size: 1.6rem; font-weight: 800; font-family: var(--font-head); }
 .protein-big { font-size: 2.5rem; font-weight: 800; font-family: var(--font-head); }
 .protein-big span { font-size: 1rem; color: var(--muted); font-weight: 500; }
+.qp-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.qp-preview:empty { margin-top: 0; }
+.qp-chip { font-size: .82rem; font-weight: 600; padding: 5px 11px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+.qp-chip.ok { background: rgba(52,224,138,.14); border: 1px solid rgba(52,224,138,.4); color: var(--text); }
+.qp-chip.ok .qp-kcal { color: var(--green); font-size: .74rem; }
+.qp-chip.miss { background: var(--bg2); border: 1px dashed var(--border2); color: var(--muted); }
 .food-preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); gap: 8px; margin-bottom: 14px; }
 .food-preset { background: var(--bg2); border: 1px solid var(--border2); border-radius: 11px; padding: 11px; cursor: pointer; color: var(--text); text-align: left; font-family: var(--font-body); }
 .food-preset:hover { border-color: var(--accent); }
