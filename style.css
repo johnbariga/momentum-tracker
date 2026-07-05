@@ -152,6 +152,13 @@ input[type=time] { min-width: 132px; }
 .stat-num { font-size: 1.7rem; font-weight: 800; }
 .stat-label { font-size: .78rem; color: var(--muted); font-weight: 600; }
 .streak-flame { font-size: 1.05rem; }
+.streak-strip { display: flex; gap: 8px; margin-top: 14px; }
+.streak-pill {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; cursor: default;
+}
+.streak-pill .streak-val { font-size: 1.25rem; font-weight: 800; font-family: var(--font-head); line-height: 1; }
+.streak-pill .streak-cap { font-size: .7rem; color: var(--muted); font-weight: 600; }
 .quick-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip-btn {
   background: var(--panel2); border: 1px solid var(--border2); color: var(--text); border-radius: 999px;

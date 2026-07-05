@@ -326,6 +326,22 @@ function waterStreak() {
   while (waterTotal(peekDay(d)) >= db.settings.waterGoal) { streak++; d = shiftDate(d, -1); }
   return streak;
 }
+/* A "deficit day" = food was logged AND total kcal stayed at/under target.
+   Streak = consecutive deficit days ending today (or yesterday if today is
+   still in progress). A cheat meal does NOT break it — only going over target
+   does. Days with zero food logged break the streak (nothing to judge). */
+function isDeficitDay(day, target) {
+  const kc = kcalTotal(day);
+  return kc > 0 && kc <= target;
+}
+function deficitStreak() {
+  const target = calorieEngine().target;
+  let streak = 0, d = todayStr();
+  // today only counts once it's under target; otherwise measure up to yesterday
+  if (!isDeficitDay(peekDay(d), target)) d = shiftDate(d, -1);
+  while (isDeficitDay(peekDay(d), target)) { streak++; d = shiftDate(d, -1); }
+  return streak;
+}
 
 /* ================= Meetings & recurrence ================= */
 function meetingOccursOn(mt, dateStr) {
@@ -866,11 +882,18 @@ function renderDashboard() {
   const rPct = routineProgress(day);
   const meets = meetingsForDate(currentDate);
   const streak = waterStreak();
+  const defStreak = deficitStreak();
+  const CHEAT_BUDGET = 4;
+  const cheatUsed = cheatCountForMonth(currentDate.slice(0, 7));
+  const cheatLeft = CHEAT_BUDGET - cheatUsed;
+  const cheatColor = cheatUsed <= 2 ? "var(--green)" : cheatUsed <= 4 ? "var(--amber)" : "var(--red)";
   const last7 = [];
+  let last7ExerciseCount = 0;
   for (let i = 6; i >= 0; i--) {
     const d = shiftDate(currentDate, -i);
     const dd = peekDay(d);
     last7.push({ d, w: pctOf(waterTotal(dd), wG), p: pctOf(proteinTotal(dd), pG) });
+    last7ExerciseCount += dd ? dd.exercises.length : 0;
   }
   const body = [...db.body].sort((a, b) => a.date.localeCompare(b.date));
   const lastBody = body[body.length - 1];
@@ -895,6 +918,20 @@ function renderDashboard() {
         <div class="protein-big" style="font-size:1.9rem;color:var(--red)">+${-def} kcal over maintenance</div>
         <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Over maintenance — tomorrow is a new day.</div>`;
       })() : `<div class="empty">Log food to see your calorie budget.</div>`}
+      <div class="streak-strip">
+        <div class="streak-pill" title="Consecutive days you finished at or under your calorie target">
+          <span class="streak-val" style="color:var(--green)">${defStreak}🔥</span>
+          <span class="streak-cap">deficit streak</span>
+        </div>
+        <div class="streak-pill" title="Cheat meals used this month — budget is ${CHEAT_BUDGET}">
+          <span class="streak-val" style="color:${cheatColor}">${cheatLeft > 0 ? cheatLeft : 0}🍕</span>
+          <span class="streak-cap">cheats left</span>
+        </div>
+        <div class="streak-pill" title="Consecutive days you hit your water goal">
+          <span class="streak-val" style="color:var(--cyan)">${streak}💧</span>
+          <span class="streak-cap">water streak</span>
+        </div>
+      </div>
       <h2 style="margin-top:16px">📊 Last 7 days <span class="h-sub">💧 water · 🟩 protein</span></h2>
       <div class="mini-bars">
         ${last7.map(d => `
@@ -958,9 +995,9 @@ function renderDashboard() {
     </div>
     <div class="card stat-card" data-goto="fitness">
       <div class="stat-num" style="color:var(--amber)">${day.exercises.length} <span class="streak-flame">💪</span></div>
-      <div class="stat-label">exercises</div>
-      <div class="stat-num" style="font-size:1.1rem;color:var(--cyan)">${streak} <span class="streak-flame">🔥</span></div>
-      <div class="stat-label">water streak</div>
+      <div class="stat-label">exercises today</div>
+      <div class="stat-num" style="font-size:1.1rem;color:var(--accent2)">${last7ExerciseCount}</div>
+      <div class="stat-label">this week</div>
     </div>
   </div>`;
 }
